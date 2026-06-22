@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Compare · {{ project['name'] }}{% endblock %}
+{% block content %}
+<p class="muted"><a href="/p/{{ project['slug'] }}">← {{ project['name'] }}</a></p>
+<h2 style="margin:.2rem 0">Compare runs</h2>
+
+{% macro badge(s) %}
+  {% if s %}<span class="badge {{ s }}">{{ s }}</span>{% else %}<span class="muted">—</span>{% endif %}
+{% endmacro %}
+
+<form method="get" action="/p/{{ project['slug'] }}/compare" class="row" style="margin:1rem 0">
+  <label class="row" style="gap:.3rem">
+    <span class="muted">Base</span>
+    <select name="base">
+      <option value="">(auto: earlier run)</option>
+      {% for rid in run_ids %}
+        <option value="{{ rid }}" {% if rid == base %}selected{% endif %}>{{ rid }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <span class="muted">↔</span>
+  <label class="row" style="gap:.3rem">
+    <span class="muted">Target</span>
+    <select name="target">
+      <option value="">(choose)</option>
+      {% for rid in run_ids %}
+        <option value="{{ rid }}" {% if rid == target %}selected{% endif %}>{{ rid }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button class="btn" type="submit">Compare</button>
+</form>
+
+{% if error %}
+  <p class="empty">{{ error }}</p>
+{% elif not target %}
+  <p class="muted">Choose a target run (and optionally a base) to compare.</p>
+{% else %}
+  <p class="row" style="gap:.5rem">
+    <span class="muted">Base:</span>
+    {% if base_run %}
+      <a href="/p/{{ project['slug'] }}/runs/{{ base_run['run_id'] }}">{{ base_run['run_id'] }}</a>
+    {% elif no_earlier %}
+      <span class="muted">no earlier run</span>
+    {% else %}
+      <span class="muted">—</span>
+    {% endif %}
+    <span class="muted">→ Target:</span>
+    <a href="/p/{{ project['slug'] }}/runs/{{ target_run['run_id'] }}">{{ target_run['run_id'] }}</a>
+  </p>
+
+  {% if summary is not none %}
+    <p class="counts" style="margin:1rem 0">
+      <span class="badge drift">~ {{ summary['changed'] }} changed</span>
+      <span class="badge clean">+ {{ summary['added'] }} added</span>
+      <span class="badge error">− {{ summary['removed'] }} removed</span>
+    </p>
+
+    {% if rows %}
+    <table>
+      <thead>
+        <tr><th>Unit</th><th>Base status</th><th>Target status</th><th>Change</th></tr>
+      </thead>
+      <tbody>
+      {% for r in rows %}
+        <tr>
+          <td>{{ r['unit'] }}</td>
+          <td>{{ badge(r['base_status']) }}</td>
+          <td>{{ badge(r['target_status']) }}</td>
+          <td class="muted">{{ r['change'] }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No differences — both runs have identical unit statuses.</p>
+    {% endif %}
+  {% endif %}
+{% endif %}
+{% endblock %}

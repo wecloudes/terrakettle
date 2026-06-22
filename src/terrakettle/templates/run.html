@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ run['run_id'] }} · {{ project['name'] }}{% endblock %}
+{% block content %}
+<p class="muted"><a href="/p/{{ project['slug'] }}">← {{ project['name'] }}</a></p>
+<h2>{{ run['run_id'] }}</h2>
+<p class="muted">{{ run['report_date'] or '' }} · {{ run['total'] }} units</p>
+
+<p class="counts" style="margin:1rem 0">
+  {% if run['clean'] %}<span class="badge clean">✓ {{ run['clean'] }} clean</span>{% endif %}
+  {% if run['drift'] %}<span class="badge drift">~ {{ run['drift'] }} drift</span>{% endif %}
+  {% if run['error'] %}<span class="badge error">✕ {{ run['error'] }} error</span>{% endif %}
+  {% if run['timeout'] %}<span class="badge timeout">⏱ {{ run['timeout'] }} timeout</span>{% endif %}
+</p>
+
+<div class="row">
+  {% if run['html_key'] %}
+    <a class="btn" href="/p/{{ project['slug'] }}/runs/{{ run['run_id'] }}/">Open full report ↗</a>
+  {% endif %}
+  <a class="btn" href="/p/{{ project['slug'] }}/runs/{{ run['run_id'] }}/{{ run['run_id'] }}.json">Raw JSON</a>
+  <a class="btn" href="/p/{{ project['slug'] }}/compare?target={{ run['run_id'] }}">Compare ↔</a>
+</div>
+{% endblock %}

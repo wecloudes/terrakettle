@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ project['name'] }} · Terrakettle{% endblock %}
+{% block content %}
+<p class="muted"><a href="/">← Projects</a></p>
+<div class="row" style="justify-content:space-between">
+  <h2 style="margin:.2rem 0">{{ project['name'] }} <span class="muted">/{{ project['slug'] }}</span></h2>
+  <div class="row">
+    {{ sparkline|safe }}
+    <a class="btn" href="/p/{{ project['slug'] }}/badge.svg">badge</a>
+    <a class="btn" href="/p/{{ project['slug'] }}/feed.xml">RSS</a>
+  </div>
+</div>
+
+{% set filters = [('', 'all'), ('drift', 'drift'), ('error', 'error'), ('timeout', 'timeout'), ('clean', 'clean')] %}
+<div class="row" style="margin:.8rem 0">
+  {% for val, lbl in filters %}
+    <a class="btn {% if status_filter == val %}active{% endif %}"
+       href="/p/{{ project['slug'] }}?status_filter={{ val }}">{{ lbl }}</a>
+  {% endfor %}
+  <span class="muted">{{ total }} run(s)</span>
+</div>
+
+{% if runs %}
+<table>
+  <thead>
+    <tr><th>Run</th><th>Date</th><th>Total</th><th>Status</th><th></th></tr>
+  </thead>
+  <tbody>
+  {% for r in runs %}
+    <tr>
+      <td><a href="/p/{{ project['slug'] }}/runs/{{ r['run_id'] }}">{{ r['run_id'] }}</a></td>
+      <td class="muted">{{ r['report_date'] or '—' }}</td>
+      <td>{{ r['total'] }}</td>
+      <td>
+        <span class="counts">
+          {% if r['clean'] %}<span class="badge clean">✓ {{ r['clean'] }}</span>{% endif %}
+          {% if r['drift'] %}<span class="badge drift">~ {{ r['drift'] }}</span>{% endif %}
+          {% if r['error'] %}<span class="badge error">✕ {{ r['error'] }}</span>{% endif %}
+          {% if r['timeout'] %}<span class="badge timeout">⏱ {{ r['timeout'] }}</span>{% endif %}
+        </span>
+      </td>
+      <td><a href="/p/{{ project['slug'] }}/runs/{{ r['run_id'] }}/{{ r['run_id'] }}.json">JSON</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% if pages > 1 %}
+<div class="row pager">
+  {% if page > 1 %}<a class="btn" href="/p/{{ project['slug'] }}?page={{ page-1 }}&status_filter={{ status_filter }}">← Prev</a>{% endif %}
+  <span class="muted">Page {{ page }} / {{ pages }}</span>
+  {% if page < pages %}<a class="btn" href="/p/{{ project['slug'] }}?page={{ page+1 }}&status_filter={{ status_filter }}">Next →</a>{% endif %}
+</div>
+{% endif %}
+{% else %}
+<p class="empty">No runs{% if status_filter %} with status “{{ status_filter }}”{% endif %}.</p>
+{% endif %}
+{% endblock %}
