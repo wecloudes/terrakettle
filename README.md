@@ -374,4 +374,4 @@ check; `publish.yml` builds and pushes the multi-cloud Docker images
 
 ## License
 
-[MIT](../terrahawk/LICENSE) · Made with <3 by [WeCloud](https://www.wecloud.es/).
+[MIT](LICENSE) · Made with <3 by [WeCloud](https://www.wecloud.es/).
