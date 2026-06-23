@@ -1,12 +1,21 @@
 {% extends "base.html" %}
 {% block title %}Projects · Terrakettle{% endblock %}
+{% block tagline %}Terrahawk report store{% endblock %}
 {% block nav %}
-  <span class="muted">Terrahawk report store</span>
   {% if auth_enabled %}<a class="navlink" href="/logout">Logout</a>{% endif %}
 {% endblock %}
 {% block content %}
-<h2>Projects</h2>
 {% if projects %}
+<div class="stats">
+  <div class="stat-card stat-total">
+    <div class="number">{{ projects|length }}</div>
+    <div class="label">Projects</div>
+  </div>
+  <div class="stat-card stat-clean">
+    <div class="number">{{ projects|sum(attribute='run_count') }}</div>
+    <div class="label">Total runs</div>
+  </div>
+</div>
 <table>
   <thead>
     <tr><th>Project</th><th>Latest</th><th>Runs</th><th>Last run</th></tr>
@@ -14,15 +23,15 @@
   <tbody>
   {% for p in projects %}
     <tr>
-      <td><a href="/p/{{ p['slug'] }}">{{ p['name'] }}</a>
-          <span class="muted">/{{ p['slug'] }}</span></td>
+      <td><a href="/p/{{ p['slug'] }}" class="app-name">{{ p['name'] }}</a>
+          <span class="muted mono">/{{ p['slug'] }}</span></td>
       <td>
-        {% if p['last_error'] %}<span class="badge error">✕ {{ p['last_error'] }}</span>
-        {% elif p['last_drift'] %}<span class="badge drift">~ {{ p['last_drift'] }}</span>
-        {% elif p['run_count'] %}<span class="badge clean">✓ clean</span>
+        {% if p['last_error'] %}<span class="badge badge-error">✕ {{ p['last_error'] }}</span>
+        {% elif p['last_drift'] %}<span class="badge badge-drift">~ {{ p['last_drift'] }}</span>
+        {% elif p['run_count'] %}<span class="badge badge-clean">✓ clean</span>
         {% else %}<span class="muted">—</span>{% endif %}
       </td>
-      <td>{{ p['run_count'] }}</td>
+      <td class="mono">{{ p['run_count'] }}</td>
       <td class="muted">{{ p['last_run_at'] or '—' }}</td>
     </tr>
   {% endfor %}

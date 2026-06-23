@@ -1,22 +1,61 @@
 {% extends "base.html" %}
 {% block title %}{{ run['run_id'] }} · {{ project['name'] }}{% endblock %}
+{% block tagline %}{{ project['name'] }}{% endblock %}
 {% block content %}
+{% set total = run['total'] or 0 %}
+{% set pct = 100.0 / total if total else 0 %}
 <p class="muted"><a href="/p/{{ project['slug'] }}">← {{ project['name'] }}</a></p>
-<h2>{{ run['run_id'] }}</h2>
-<p class="muted">{{ run['report_date'] or '' }} · {{ run['total'] }} units</p>
+<h2 class="mono" style="margin:.3rem 0">{{ run['run_id'] }}</h2>
+<p class="muted">{{ run['report_date'] or '' }}</p>
 
-<p class="counts" style="margin:1rem 0">
-  {% if run['clean'] %}<span class="badge clean">✓ {{ run['clean'] }} clean</span>{% endif %}
-  {% if run['drift'] %}<span class="badge drift">~ {{ run['drift'] }} drift</span>{% endif %}
-  {% if run['error'] %}<span class="badge error">✕ {{ run['error'] }} error</span>{% endif %}
-  {% if run['timeout'] %}<span class="badge timeout">⏱ {{ run['timeout'] }} timeout</span>{% endif %}
-</p>
+<div class="stats" style="margin-top:18px">
+  <div class="stat-card stat-total"><div class="number">{{ total }}</div><div class="label">Units</div></div>
+  <div class="stat-card stat-clean"><div class="number">{{ run['clean'] }}</div><div class="label">Clean</div></div>
+  <div class="stat-card stat-drift"><div class="number">{{ run['drift'] }}</div><div class="label">Drift</div></div>
+  <div class="stat-card stat-error"><div class="number">{{ run['error'] }}</div><div class="label">Error</div></div>
+  <div class="stat-card stat-timeout"><div class="number">{{ run['timeout'] }}</div><div class="label">Timeout</div></div>
+</div>
 
-<div class="row">
+{% if total %}
+<div class="cov-container">
+  <h3>Unit Status</h3>
+  <div class="cov-bar">
+    {% if run['clean'] %}<div class="seg-clean" style="width:{{ run['clean'] * pct }}%"></div>{% endif %}
+    {% if run['drift'] %}<div class="seg-drift" style="width:{{ run['drift'] * pct }}%"></div>{% endif %}
+    {% if run['error'] %}<div class="seg-error" style="width:{{ run['error'] * pct }}%"></div>{% endif %}
+    {% if run['timeout'] %}<div class="seg-timeout" style="width:{{ run['timeout'] * pct }}%"></div>{% endif %}
+  </div>
+  <div class="cov-legend">
+    <span class="legend-clean">Clean</span><span class="legend-drift">Drift</span>
+    <span class="legend-error">Error</span><span class="legend-timeout">Timeout</span>
+  </div>
+</div>
+{% endif %}
+
+<div class="row" style="margin-bottom:20px">
   {% if run['html_key'] %}
     <a class="btn" href="/p/{{ project['slug'] }}/runs/{{ run['run_id'] }}/">Open full report ↗</a>
   {% endif %}
   <a class="btn" href="/p/{{ project['slug'] }}/runs/{{ run['run_id'] }}/{{ run['run_id'] }}.json">Raw JSON</a>
   <a class="btn" href="/p/{{ project['slug'] }}/compare?target={{ run['run_id'] }}">Compare ↔</a>
 </div>
+
+{% if units %}
+{% set glyph = {'clean':'✓','drift':'~','error':'✕','timeout':'⏱'} %}
+<table>
+  <thead><tr><th style="width:36px"></th><th>Unit</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for u in units %}
+    {% set parts = u.unit.rsplit('/', 1) %}
+    <tr>
+      <td class="mono" style="text-align:center;color:var(--{{ {'clean':'green','drift':'yellow','error':'red','timeout':'orange'}.get(u.status,'text-muted') }})">{{ glyph.get(u.status,'?') }}</td>
+      <td class="mono" style="font-size:13px">
+        {% if parts|length > 1 %}<span class="path-prefix">{{ parts[0] }}/</span><span class="app-name">{{ parts[1] }}</span>{% else %}<span class="app-name">{{ u.unit }}</span>{% endif %}
+      </td>
+      <td><span class="badge badge-{{ u.status }}">{{ u.status }}</span></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
 {% endblock %}

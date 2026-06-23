@@ -3,6 +3,7 @@
 All settings carry a ``TERRAKETTLE_`` prefix, e.g. ``TERRAKETTLE_ADMIN_KEY``.
 """
 
+import os
 from functools import lru_cache
 from typing import Optional
 
@@ -73,10 +74,14 @@ class Settings(BaseSettings):
     signed_url_ttl: int = 300
 
     # --- Storage ------------------------------------------------------------
-    # Backend for report payloads: local | s3 | azure | gcs
-    storage_backend: str = "local"
-    # Common: bucket/container name (s3/gcs/azure) or base dir (local).
-    storage_bucket: str = "terrakettle_data"
+    # Backend for report payloads: auto | local | s3 | azure | gcs | versitygw
+    # "auto" (default) picks a cloud backend when its credentials are present,
+    # otherwise falls back to a bundled versitygw (S3-compatible) so presigned
+    # URLs always work — see resolved_backend().
+    storage_backend: str = "auto"
+    # Bucket/container name (s3/gcs/azure/versitygw) or base dir (local).
+    # Must be DNS-compliant for S3-compatible backends.
+    storage_bucket: str = "terrakettle"
     # Key prefix inside the bucket/container.
     storage_prefix: str = "reports"
 
@@ -88,6 +93,31 @@ class Settings(BaseSettings):
     # Azure Blob — connection string or account URL + default credential.
     azure_connection_string: Optional[str] = None
     azure_account_url: Optional[str] = None
+
+    # versitygw — an Apache-2.0 S3 gateway used as the credential-free default
+    # (run via the bundled docker-compose). The URL must be reachable BY THE
+    # BROWSER too, since presigned sidecar URLs point at it.
+    versitygw_url: str = "http://localhost:7070"
+    versitygw_access_key: str = "terrakettle"
+    versitygw_secret_key: str = "terrakettle-secret"
+    versitygw_region: str = "us-east-1"
+
+    def resolved_backend(self) -> str:
+        """Concrete backend name, resolving "auto" from available credentials.
+
+        Order: explicit Azure/GCS/AWS creds win; otherwise fall back to the
+        bundled versitygw so report sidecars can always be presigned.
+        """
+        b = self.storage_backend.lower()
+        if b != "auto":
+            return b
+        if self.azure_connection_string or self.azure_account_url:
+            return "azure"
+        if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+            return "gcs"
+        if os.environ.get("AWS_ACCESS_KEY_ID"):
+            return "s3"
+        return "versitygw"
 
     @property
     def effective_session_secret(self) -> str:

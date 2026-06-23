@@ -35,7 +35,7 @@ Terrakettle is a lightweight web service that **stores and serves [Terrahawk](..
 ## Quick Start
 
 ```bash
-pip install -e .          # local backend, no cloud SDK needed
+pip install -e .
 
 export TERRAKETTLE_ADMIN_KEY="$(openssl rand -hex 16)"
 
@@ -43,10 +43,17 @@ export TERRAKETTLE_ADMIN_KEY="$(openssl rand -hex 16)"
 terrakettle create-project acme --name "Acme Infra"
 terrakettle mint-token acme --label ci      # prints the token once
 
-terrakettle serve --port 8000               # open http://localhost:8000
+# Simplest run — plain filesystem storage, no extra services:
+TERRAKETTLE_STORAGE_BACKEND=local terrakettle serve --port 8000
 ```
 
-Project and token management is also available over HTTP (guarded by the admin key) — see [API](#api).
+Open <http://localhost:8000>. Project and token management is also available
+over HTTP (guarded by the admin key) — see [API](#api).
+
+> The default backend is `auto`, which uses a local **versitygw** S3 gateway so
+> presigned URLs work without a cloud account — start it with
+> `docker compose up` (see [Storage](#storage)). Use `local` (above) for the
+> zero-dependency path that needs no gateway.
 
 ---
 
@@ -73,37 +80,98 @@ All settings are environment variables prefixed `TERRAKETTLE_`.
 | `TERRAKETTLE_MAX_RUNS_PER_PROJECT` | `0` | Keep at most N runs/project (oldest pruned on push). `0` = unlimited |
 | `TERRAKETTLE_SIGNED_URLS` | `true` | Redirect sidecar files (`data.js`/`json`) to presigned object-store URLs when supported |
 | `TERRAKETTLE_SIGNED_URL_TTL` | `300` | Presigned URL lifetime (seconds) |
-| `TERRAKETTLE_STORAGE_BACKEND` | `local` | `local` \| `s3` \| `azure` \| `gcs` |
-| `TERRAKETTLE_STORAGE_BUCKET` | `terrakettle_data` | Bucket/container name, or base dir for `local` |
+| `TERRAKETTLE_STORAGE_BACKEND` | `auto` | `auto` \| `local` \| `s3` \| `azure` \| `gcs` \| `versitygw` |
+| `TERRAKETTLE_STORAGE_BUCKET` | `terrakettle` | Bucket/container name (DNS-safe), or base dir for `local` |
 | `TERRAKETTLE_STORAGE_PREFIX` | `reports` | Key prefix inside the bucket |
 | `TERRAKETTLE_S3_ENDPOINT_URL` | — | S3-compatible endpoint (e.g. MinIO) |
 | `TERRAKETTLE_S3_REGION` | — | S3 region |
 | `TERRAKETTLE_AZURE_CONNECTION_STRING` | — | Azure Blob connection string (required for SAS presigning) |
 | `TERRAKETTLE_AZURE_ACCOUNT_URL` | — | Azure account URL (uses `DefaultAzureCredential`; no presigning) |
+| `TERRAKETTLE_VERSITYGW_URL` | `http://localhost:7070` | versitygw endpoint (must be **browser-reachable** — presigned URLs point here) |
+| `TERRAKETTLE_VERSITYGW_ACCESS_KEY` | `terrakettle` | versitygw access key |
+| `TERRAKETTLE_VERSITYGW_SECRET_KEY` | `terrakettle-secret` | versitygw secret key |
 
 The default `REPORT_CSP` permits the inline scripts and the jsDelivr CDN that
 Terrahawk reports need, while forbidding framing (`frame-ancestors 'none'`). See
 [Security hardening](#security-hardening) for stronger isolation options.
 
+## Storage
+
+Report **payloads** (`.html`, `_data.js`, `.json`) live in object storage; only
+the **metadata** index lives in SQLite. The backend is chosen by
+`TERRAKETTLE_STORAGE_BACKEND`:
+
+| Backend | Use | Presign | Credentials |
+|---------|-----|---------|-------------|
+| `auto` *(default)* | picks a cloud backend if its creds are present, else **versitygw** | yes | none required |
+| `versitygw` | bundled [versitygw](https://github.com/versity/versitygw) (Apache-2.0 S3 gateway over a POSIX dir) | yes | static keys (defaults provided) |
+| `s3` | AWS S3 or any S3-compatible store (MinIO via `S3_ENDPOINT_URL`) | yes | AWS chain |
+| `azure` | Azure Blob | yes (connection-string) / no (`DefaultAzureCredential`) | conn-string or managed identity |
+| `gcs` | Google Cloud Storage | yes | `GOOGLE_APPLICATION_CREDENTIALS` |
+| `local` | filesystem dir | no (proxies) | none — dev only |
+
+**`auto` resolution order:** Azure creds → GCS creds → AWS creds → **versitygw**.
+So with no cloud credentials configured, Terrakettle uses a local versitygw
+gateway — an S3 endpoint that supports presigned URLs without any cloud account.
+This keeps the presign path always available; `local` (plain filesystem, no
+presign) remains selectable explicitly for the truly zero-dependency case.
+
 ### Serving & signed URLs
 
 The report HTML is always proxied through Terrakettle (so the page URL stays on
-your domain). Its sidecar files — the large `_data.js` and the raw `.json` — are
-**redirected to short-lived presigned object-store URLs** when the backend can
-sign them (`s3`, `gcs`, and `azure` with a connection string), so the object
-store serves those bytes directly. When signing is unavailable (`local`, or
-Azure with `DefaultAzureCredential`), Terrakettle transparently proxies them
-instead. Toggle with `TERRAKETTLE_SIGNED_URLS`.
+your domain) with a strict CSP. Its sidecar files — the large `_data.js` and the
+raw `.json` — are **redirected to short-lived presigned URLs** so the object
+store serves those bytes directly (SigV4, path-style for self-hosted gateways).
+Under `local`, signing isn't possible and Terrakettle transparently proxies the
+bytes instead. Toggle with `TERRAKETTLE_SIGNED_URLS`; lifetime
+`TERRAKETTLE_SIGNED_URL_TTL`.
 
-Cloud SDKs are optional extras — install only the one you use:
+> The presigned URL is signed against `TERRAKETTLE_VERSITYGW_URL` (or the cloud
+> endpoint), so that URL must be reachable **by the browser**, not just by the
+> server. For local versitygw that means `http://localhost:7070`; behind a proxy
+> use the public endpoint.
+
+### Credentials & least-privilege
+
+Terrakettle never stores credentials — each backend reads them from the standard
+chain at runtime:
+
+- **S3 / AWS** — `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, `~/.aws`, or an
+  IAM role. The access key also signs presigned URLs (no extra permission).
+- **Azure Blob** — `TERRAKETTLE_AZURE_CONNECTION_STRING` (account key inside;
+  required for SAS presigning), or `TERRAKETTLE_AZURE_ACCOUNT_URL` +
+  `DefaultAzureCredential` (managed identity / `az login`).
+- **GCS** — `GOOGLE_APPLICATION_CREDENTIALS` chain.
+- **versitygw / local** — no cloud credentials.
+
+Least-privilege grant for a cloud backend: object **Get / Put / Delete** on the
+bucket/container under the `reports/` prefix. Example AWS policy actions:
+`s3:GetObject`, `s3:PutObject`, `s3:DeleteObject` (+ `s3:ListBucket` if you want
+clean 404s) on `arn:aws:s3:::<bucket>/reports/*`.
+
+Cloud SDKs: `boto3` ships in the base install (the `s3`/`versitygw` backends).
+Install Azure/GCS SDKs only if you use them:
 
 ```bash
-pip install ".[aws]"     # boto3
-pip install ".[azure]"   # azure-storage-blob
+pip install ".[azure]"   # azure-storage-blob + azure-identity
 pip install ".[gcp]"     # google-cloud-storage
 ```
 
-GCS credentials come from the standard `GOOGLE_APPLICATION_CREDENTIALS` chain.
+### Local stack with presigned URLs
+
+```bash
+export TERRAKETTLE_ADMIN_KEY="$(openssl rand -hex 16)"
+docker compose up --build      # versitygw + terrakettle, presign works out of the box
+```
+
+Or run versitygw alone and Terrakettle on the host (handy on macOS):
+
+```bash
+docker run -d -p 7070:7070 -v vgw:/data \
+  -e ROOT_ACCESS_KEY=terrakettle -e ROOT_SECRET_KEY=terrakettle-secret \
+  ghcr.io/versity/versitygw:latest --region us-east-1 posix /data
+terrakettle serve            # auto -> versitygw at localhost:7070
+```
 
 ---
 
@@ -335,27 +403,34 @@ terrakettle/
 ├── terrakettle.py            # entrypoint shim (python3 terrakettle.py ...)
 ├── pyproject.toml
 ├── Dockerfile                # multi-cloud images via --build-arg CLOUD
+├── docker-compose.yml        # versitygw + terrakettle (presign-ready local stack)
 ├── scripts/push.py           # stdlib-only CI push client
 ├── tests/                    # pytest suite
 ├── .github/workflows/        # CI (test + syntax) and publish (Docker images)
 └── src/terrakettle/
     ├── __main__.py           # CLI: serve / create-project / mint-token / delete-project / ...
     ├── app.py                # FastAPI app factory + view-auth middleware
-    ├── config.py             # env-based settings
+    ├── config.py             # env-based settings + storage backend resolver
     ├── db.py                 # SQLite metadata index (WAL, auto-migrations)
-    ├── storage.py            # object-storage backends (put/get/delete/presign)
+    ├── storage.py            # object-storage backends (local/s3/azure/gcs/versitygw)
     ├── retention.py          # run pruning (files + index rows)
     ├── auth.py               # admin key + push tokens + view sessions
     ├── api.py                # push + admin (project/token) endpoints
     ├── web.py                # HTML views, login, run detail + report serving
+    ├── templating.py         # shared Jinja env + page globals (about modal)
     ├── badge.py              # public SVG status badge
     ├── compare.py            # run-to-run diff view
     ├── feed.py               # per-project JSON + RSS feeds
     ├── metrics.py            # Prometheus /metrics + deep health check
     ├── notify.py             # Slack/Teams/generic push notifications
     ├── schemas.py            # response models + report summarizer
-    └── templates/            # Jinja2 pages (index, project, run, compare, login, ...)
+    └── templates/            # Jinja2 pages — Terrahawk-styled, dark/light themed
 ```
+
+The web UI shares Terrahawk's visual language (Roboto fonts, the eagle logo,
+the same color tokens, stat cards, coverage bars, status badges) and has a
+dark/light theme toggle. An **About** dialog (ℹ in the header) shows the running
+server's version, resolved storage backend, and feature flags.
 
 ---
 

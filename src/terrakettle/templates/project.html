@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% block title %}{{ project['name'] }} · Terrakettle{% endblock %}
+{% block tagline %}{{ project['name'] }} · /{{ project['slug'] }}{% endblock %}
 {% block content %}
 <p class="muted"><a href="/">← Projects</a></p>
-<div class="row" style="justify-content:space-between">
-  <h2 style="margin:.2rem 0">{{ project['name'] }} <span class="muted">/{{ project['slug'] }}</span></h2>
+<div class="row" style="justify-content:space-between;align-items:flex-end">
+  <h2 style="margin:.2rem 0">{{ project['name'] }} <span class="muted mono" style="font-size:.7em">/{{ project['slug'] }}</span></h2>
   <div class="row">
     {{ sparkline|safe }}
     <a class="btn" href="/p/{{ project['slug'] }}/badge.svg">badge</a>
@@ -11,12 +12,33 @@
   </div>
 </div>
 
+{% if latest and latest['total'] %}
+{% set t = latest['total'] %}{% set pct = 100.0 / t %}
+<div class="cov-container" style="margin-top:18px">
+  <h3>Latest run — {{ latest['run_id'] }}</h3>
+  <div class="cov-bar">
+    {% if latest['clean'] %}<div class="seg-clean" style="width:{{ latest['clean'] * pct }}%"></div>{% endif %}
+    {% if latest['drift'] %}<div class="seg-drift" style="width:{{ latest['drift'] * pct }}%"></div>{% endif %}
+    {% if latest['error'] %}<div class="seg-error" style="width:{{ latest['error'] * pct }}%"></div>{% endif %}
+    {% if latest['timeout'] %}<div class="seg-timeout" style="width:{{ latest['timeout'] * pct }}%"></div>{% endif %}
+  </div>
+  <div class="cov-legend">
+    <span class="legend-clean">Clean {{ latest['clean'] }}</span>
+    <span class="legend-drift">Drift {{ latest['drift'] }}</span>
+    <span class="legend-error">Error {{ latest['error'] }}</span>
+    <span class="legend-timeout">Timeout {{ latest['timeout'] }}</span>
+  </div>
+</div>
+{% endif %}
+
 {% set filters = [('', 'all'), ('drift', 'drift'), ('error', 'error'), ('timeout', 'timeout'), ('clean', 'clean')] %}
-<div class="row" style="margin:.8rem 0">
+<div class="filters">
+  <div class="filter-group">
   {% for val, lbl in filters %}
-    <a class="btn {% if status_filter == val %}active{% endif %}"
+    <a class="filter-btn {% if status_filter == val %}active{% endif %}"
        href="/p/{{ project['slug'] }}?status_filter={{ val }}">{{ lbl }}</a>
   {% endfor %}
+  </div>
   <span class="muted">{{ total }} run(s)</span>
 </div>
 
@@ -28,15 +50,15 @@
   <tbody>
   {% for r in runs %}
     <tr>
-      <td><a href="/p/{{ project['slug'] }}/runs/{{ r['run_id'] }}">{{ r['run_id'] }}</a></td>
-      <td class="muted">{{ r['report_date'] or '—' }}</td>
+      <td><a class="mono" href="/p/{{ project['slug'] }}/runs/{{ r['run_id'] }}">{{ r['run_id'] }}</a></td>
+      <td class="muted mono">{{ r['report_date'] or '—' }}</td>
       <td>{{ r['total'] }}</td>
       <td>
         <span class="counts">
-          {% if r['clean'] %}<span class="badge clean">✓ {{ r['clean'] }}</span>{% endif %}
-          {% if r['drift'] %}<span class="badge drift">~ {{ r['drift'] }}</span>{% endif %}
-          {% if r['error'] %}<span class="badge error">✕ {{ r['error'] }}</span>{% endif %}
-          {% if r['timeout'] %}<span class="badge timeout">⏱ {{ r['timeout'] }}</span>{% endif %}
+          {% if r['clean'] %}<span class="badge badge-clean">✓ {{ r['clean'] }}</span>{% endif %}
+          {% if r['drift'] %}<span class="badge badge-drift">~ {{ r['drift'] }}</span>{% endif %}
+          {% if r['error'] %}<span class="badge badge-error">✕ {{ r['error'] }}</span>{% endif %}
+          {% if r['timeout'] %}<span class="badge badge-timeout">⏱ {{ r['timeout'] }}</span>{% endif %}
         </span>
       </td>
       <td><a href="/p/{{ project['slug'] }}/runs/{{ r['run_id'] }}/{{ r['run_id'] }}.json">JSON</a></td>

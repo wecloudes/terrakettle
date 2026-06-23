@@ -1,19 +1,22 @@
 """HTML views: login, project list, run history, and report serving."""
 
+import json
 import math
 import mimetypes
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 
 from fastapi import APIRouter, Form, HTTPException, Request, status
 from fastapi.responses import (HTMLResponse, RedirectResponse, Response)
-from fastapi.templating import Jinja2Templates
 
 from . import auth, db
 from .config import get_settings
 from .storage import get_storage
+from .templating import templates as _templates
 
 router = APIRouter()
-_templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+
+# Order used when previewing a run's units: worst first.
+_STATUS_ORDER = {"error": 0, "timeout": 1, "drift": 2, "clean": 3}
 
 
 # --- Trend sparkline --------------------------------------------------------
@@ -101,11 +104,13 @@ def project_page(request: Request, slug: str, page: int = 1,
     runs = db.list_runs(project["id"], limit=size, offset=(page - 1) * size,
                         status=status_filter or None)
     trend = db.runs_for_trend(project["id"])
+    latest_rows = db.list_runs(project["id"], limit=1)
     return _templates.TemplateResponse(
         request, "project.html",
         {"project": project, "runs": runs, "page": page, "pages": pages,
          "total": total, "status_filter": status_filter,
-         "sparkline": _sparkline(trend)},
+         "sparkline": _sparkline(trend),
+         "latest": latest_rows[0] if latest_rows else None},
     )
 
 
@@ -113,11 +118,36 @@ def project_page(request: Request, slug: str, page: int = 1,
 
 @router.get("/p/{slug}/runs/{run_id}", response_class=HTMLResponse)
 def run_detail(request: Request, slug: str, run_id: str):
-    """Terrakettle chrome around a run: metadata, links, report/compare."""
+    """Terrakettle chrome around a run: stat cards, coverage, unit preview."""
     project, run = _resolve_run(slug, run_id)
+    units = _load_units(run)
     return _templates.TemplateResponse(
-        request, "run.html", {"project": project, "run": run}
+        request, "run.html",
+        {"project": project, "run": run, "units": units},
     )
+
+
+def _load_units(run):
+    """Load a run's unit list from its stored JSON for the detail preview.
+
+    Returns a list of {unit, status, summary} sorted worst-first, or None if
+    the payload can't be read/parsed.
+    """
+    if not run["json_key"]:
+        return None
+    try:
+        data = json.loads(get_storage().get(run["json_key"]))
+        if not isinstance(data, list):
+            return None
+    except Exception:
+        return None
+    units = [
+        {"unit": u.get("unit", ""), "status": u.get("status", ""),
+         "summary": u.get("summary", "")}
+        for u in data if isinstance(u, dict)
+    ]
+    units.sort(key=lambda u: (_STATUS_ORDER.get(u["status"], 9), u["unit"]))
+    return units
 
 
 @router.get("/p/{slug}/runs/{run_id}/", response_class=HTMLResponse)

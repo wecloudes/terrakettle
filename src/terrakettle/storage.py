@@ -69,15 +69,39 @@ class LocalStorage(Storage):
 
 
 class S3Storage(Storage):
-    def __init__(self, settings: Settings):
-        import boto3  # lazy: only needed for the s3 backend
+    def __init__(self, settings: Settings, *, endpoint: Optional[str] = None,
+                 access_key: Optional[str] = None,
+                 secret_key: Optional[str] = None,
+                 region: Optional[str] = None, ensure_bucket: bool = False):
+        import boto3  # lazy: only needed for s3-compatible backends
+        from botocore.config import Config
 
         self.bucket = settings.storage_bucket
-        self.client = boto3.client(
-            "s3",
-            endpoint_url=settings.s3_endpoint_url,
-            region_name=settings.s3_region,
-        )
+        ep = endpoint if endpoint is not None else settings.s3_endpoint_url
+        kwargs = {"endpoint_url": ep, "region_name": region or settings.s3_region}
+        if access_key:
+            kwargs["aws_access_key_id"] = access_key
+            kwargs["aws_secret_access_key"] = secret_key
+        # SigV4 + path-style addressing so presigned URLs work against
+        # self-hosted S3 gateways (versitygw/MinIO), which reject SigV2 and
+        # virtual-host buckets. Harmless for real AWS.
+        cfg = {"signature_version": "s3v4"}
+        if ep:
+            cfg["s3"] = {"addressing_style": "path"}
+        self.client = boto3.client("s3", config=Config(**cfg), **kwargs)
+        # Auto-create the bucket for self-hosted endpoints (versitygw/MinIO);
+        # never for real AWS (no endpoint) where buckets are managed out-of-band.
+        if ensure_bucket or ep:
+            self._ensure_bucket()
+
+    def _ensure_bucket(self) -> None:
+        try:
+            self.client.head_bucket(Bucket=self.bucket)
+        except Exception:
+            try:
+                self.client.create_bucket(Bucket=self.bucket)
+            except Exception:
+                pass  # may already exist / race; put() will surface real errors
 
     def put(self, key: str, data: bytes, content_type: str) -> None:
         self.client.put_object(
@@ -187,11 +211,28 @@ class GCSStorage(Storage):
             return None
 
 
+class VersityStorage(S3Storage):
+    """S3 backend pointed at a bundled versitygw gateway (the credential-free
+    default). versitygw is an Apache-2.0 S3 gateway over a POSIX filesystem, so
+    presigned URLs work without any cloud account."""
+
+    def __init__(self, settings: Settings):
+        super().__init__(
+            settings,
+            endpoint=settings.versitygw_url,
+            access_key=settings.versitygw_access_key,
+            secret_key=settings.versitygw_secret_key,
+            region=settings.versitygw_region,
+            ensure_bucket=True,
+        )
+
+
 _BACKENDS = {
     "local": LocalStorage,
     "s3": S3Storage,
     "azure": AzureStorage,
     "gcs": GCSStorage,
+    "versitygw": VersityStorage,
 }
 
 _instance: Optional[Storage] = None
@@ -201,7 +242,7 @@ def get_storage() -> Storage:
     global _instance
     if _instance is None:
         settings = get_settings()
-        backend = settings.storage_backend.lower()
+        backend = settings.resolved_backend()
         if backend not in _BACKENDS:
             raise RuntimeError(f"Unknown storage backend: {backend}")
         _instance = _BACKENDS[backend](settings)

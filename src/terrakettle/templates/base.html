@@ -4,69 +4,193 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Terrakettle{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  // Set the theme before first paint to avoid a flash.
+  (function () {
+    try {
+      var t = localStorage.getItem('tk-theme');
+      if (t) document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  })();
+</script>
 <style>
-  :root {
-    --bg: #0d1117; --panel: #161b22; --border: #30363d;
-    --fg: #e6edf3; --muted: #8b949e;
-    --clean: #3fb950; --drift: #e8863a; --error: #f85149;
-    --timeout: #d29922; --accent: #58a6ff;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--fg);
-    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  }
-  header {
-    display: flex; align-items: center; gap: .6rem;
-    padding: 1rem 1.5rem; border-bottom: 1px solid var(--border);
-  }
-  header h1 { font-size: 1.2rem; margin: 0; }
-  header a { color: var(--fg); text-decoration: none; }
-  main { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
-  a { color: var(--accent); }
-  table { width: 100%; border-collapse: collapse; }
-  th, td {
-    text-align: left; padding: .55rem .7rem;
-    border-bottom: 1px solid var(--border);
-  }
-  th { color: var(--muted); font-weight: 600; font-size: .82rem;
-       text-transform: uppercase; letter-spacing: .03em; }
-  tr:hover td { background: var(--panel); }
-  .badge {
-    display: inline-block; padding: .05rem .5rem; border-radius: 999px;
-    font-size: .8rem; font-weight: 600; border: 1px solid currentColor;
-  }
-  .clean { color: var(--clean); }
-  .drift { color: var(--drift); }
-  .error { color: var(--error); }
-  .timeout { color: var(--timeout); }
-  .muted { color: var(--muted); }
-  .empty { color: var(--muted); padding: 2rem 0; text-align: center; }
-  .counts { display: flex; gap: .4rem; flex-wrap: wrap; }
-  .btn {
-    display: inline-block; padding: .3rem .7rem; border-radius: 6px;
-    border: 1px solid var(--border); background: var(--panel);
-    color: var(--fg); text-decoration: none; font-size: .85rem; cursor: pointer;
-  }
-  .btn:hover { border-color: var(--accent); }
-  .btn.active { border-color: var(--accent); color: var(--accent); }
-  .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
-  .pager { margin-top: 1rem; }
-  input[type=password], input[type=text] {
-    padding: .45rem .6rem; border-radius: 6px; border: 1px solid var(--border);
-    background: var(--panel); color: var(--fg); font-size: .95rem;
-  }
-  header a.navlink { color: var(--muted); font-size: .9rem; margin-left: 1rem; }
+/* ── Design tokens (shared with Terrahawk's report) ───────────────── */
+:root{--bg:#0d1117;--surface:#161b22;--border:#30363d;--text:#e6edf3;--text-muted:#8b949e;--text-dim:#484f58;--green:#3fb950;--green-bg:#12261e;--green-border:#1a4028;--red:#f85149;--red-bg:#2d1214;--red-border:#5a1d23;--yellow:#d29922;--yellow-bg:#2a2013;--yellow-border:#4d3a12;--blue:#58a6ff;--blue-bg:#0d2138;--blue-border:#1a3a5c;--cyan:#39d2c0;--orange:#e8863a;--orange-bg:#2d1a08;--orange-border:#5a3410;--hover:#1c2128}
+[data-theme="light"]{--bg:#fff;--surface:#f6f8fa;--border:#d0d7de;--text:#1f2328;--text-muted:#656d76;--text-dim:#8b949e;--green:#1a7f37;--green-bg:#dafbe1;--green-border:#aceebb;--red:#cf222e;--red-bg:#ffebe9;--red-border:#ffcecb;--yellow:#9a6700;--yellow-bg:#fff8c5;--yellow-border:#f5e0a0;--blue:#0969da;--blue-bg:#ddf4ff;--blue-border:#b6e3ff;--cyan:#0a8a7a;--orange:#bc4c00;--orange-bg:#fff1e5;--orange-border:#ffd8b5;--hover:#f0f2f5}
+
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Roboto',sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
+.container{max-width:1200px;margin:0 auto;padding:24px}
+.mono{font-family:'Roboto Mono',monospace}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ── Header ───────────────────────────────────────────────────────── */
+.header{position:relative;text-align:center;padding:28px 0;border-bottom:1px solid var(--border);margin-bottom:24px}
+.header-layout{position:relative;min-height:72px;display:flex;align-items:center;justify-content:center}
+.kettle-icon{height:88px;position:absolute;left:0;top:50%;transform:translateY(-50%);filter:invert(1)}
+[data-theme="light"] .kettle-icon{filter:none}
+.header h1{font-size:26px;font-weight:700}
+.header h1 a{color:var(--text)}
+.header h1 a:hover{text-decoration:none}
+.header .tagline{font-size:15px;font-weight:300;color:var(--text-muted)}
+.header .meta{color:var(--text-muted);font-size:13px;margin-top:6px}
+.info-btn{position:absolute;top:8px;background:var(--surface);border:1px solid var(--border);color:var(--blue);width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.info-btn:hover{border-color:var(--blue);background:var(--blue-bg)}
+
+/* ── Stat cards ───────────────────────────────────────────────────── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px;text-align:center}
+.stat-card .number{font-size:34px;font-weight:700}
+.stat-card .label{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-top:4px}
+.stat-total .number{color:var(--blue)}.stat-clean .number{color:var(--green)}.stat-drift .number{color:var(--yellow)}.stat-error .number{color:var(--red)}.stat-timeout .number{color:var(--orange)}
+
+/* ── Coverage bar ─────────────────────────────────────────────────── */
+.cov-container{margin-bottom:24px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:18px}
+.cov-container h3{font-size:13px;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+.cov-bar{height:22px;border-radius:6px;overflow:hidden;display:flex;background:var(--border)}
+.cov-bar .seg-clean{background:var(--green)}.cov-bar .seg-drift{background:var(--yellow)}.cov-bar .seg-error{background:var(--red)}.cov-bar .seg-timeout{background:var(--orange)}
+.cov-legend{display:flex;gap:24px;margin-top:10px;font-size:13px;color:var(--text-muted);flex-wrap:wrap}
+.cov-legend span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.legend-clean::before{background:var(--green)}.legend-drift::before{background:var(--yellow)}.legend-error::before{background:var(--red)}.legend-timeout::before{background:var(--orange)}
+
+/* ── Tables ───────────────────────────────────────────────────────── */
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:.6rem .7rem;border-bottom:1px solid var(--border)}
+th{color:var(--text-muted);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+tbody tr{transition:background .1s}
+tbody tr:hover td{background:var(--hover)}
+.path-prefix{color:var(--text-dim)}
+.app-name{color:var(--text);font-weight:500}
+
+/* ── Badges (Terrahawk tokens) ────────────────────────────────────── */
+.badge{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;white-space:nowrap}
+.badge-clean{background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)}
+.badge-drift{background:var(--yellow-bg);color:var(--yellow);border:1px solid var(--yellow-border)}
+.badge-error{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border)}
+.badge-timeout{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)}
+.counts{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── Filter / action pills ────────────────────────────────────────── */
+.filters{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center;position:sticky;top:0;z-index:50;background:var(--bg);padding:12px 0;border-bottom:1px solid var(--border)}
+.filter-group{display:flex;gap:4px;flex-wrap:wrap}
+.filter-btn{background:var(--surface);border:1px solid var(--border);color:var(--text-muted);padding:6px 14px;border-radius:20px;cursor:pointer;font-size:13px;text-decoration:none;transition:all .15s;display:inline-block}
+.filter-btn:hover{border-color:var(--text-muted);color:var(--text);text-decoration:none}
+.filter-btn.active{background:var(--hover);border-color:var(--cyan);color:var(--cyan)}
+.filter-btn .count{margin-left:4px;opacity:.7}
+
+/* ── Buttons / inputs ─────────────────────────────────────────────── */
+.btn{display:inline-block;padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text);text-decoration:none;font-size:13px;cursor:pointer;transition:all .15s}
+.btn:hover{border-color:var(--cyan);color:var(--cyan);text-decoration:none}
+.row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.pager{margin-top:1rem}
+input[type=password],input[type=text]{padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;outline:none;font-family:'Roboto',sans-serif}
+input[type=password]:focus,input[type=text]:focus{border-color:var(--blue)}
+
+/* ── Misc ─────────────────────────────────────────────────────────── */
+.muted{color:var(--text-muted)}
+.error{color:var(--red)}
+.empty{color:var(--text-muted);padding:2.5rem 0;text-align:center}
+.navlink{color:var(--text-muted);font-size:.9rem;margin-left:1rem}
+code{font-family:'Roboto Mono',monospace;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-size:.85em}
+
+/* ── About modal ──────────────────────────────────────────────────── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:90%;max-width:520px;max-height:85vh;overflow:auto}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.modal-header h3{font-size:16px;margin:0}
+.modal-close{background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);width:32px;height:32px;cursor:pointer;font-size:18px}
+.modal-close:hover{color:var(--text);border-color:var(--text-muted)}
+.modal-body{padding:24px;font-size:14px;line-height:1.8}
+.about-content p{color:var(--text-muted);text-align:justify;margin-bottom:10px}
+.about-content h4{color:var(--text);margin:18px 0 8px;font-size:14px}
+.about-content strong{color:var(--text)}
+.ver-table{width:100%;border-collapse:collapse;margin:8px 0}
+.ver-table td{padding:5px 0;border-bottom:1px solid var(--border);font-size:13px}
+.ver-table tr:last-child td{border-bottom:none}
+.ver-table .k{color:var(--text)}
+.ver-table .v{color:var(--cyan);font-family:'Roboto Mono',monospace;text-align:right}
+.about-footer{margin-top:20px;padding-top:14px;border-top:1px solid var(--border);text-align:center;color:var(--text-muted);font-size:13px}
+.about-footer strong{color:var(--text)}
+.modal-eagle{height:28px;filter:invert(1);margin-right:6px;vertical-align:middle}
+[data-theme="light"] .modal-eagle{filter:none}
+
+@media(max-width:768px){.kettle-icon{display:none}.filters{flex-direction:column;align-items:stretch}}
 </style>
 </head>
 <body>
-<header>
-  <span style="font-size:1.4rem">🫖</span>
-  <h1><a href="/">Terrakettle</a></h1>
-  <span style="margin-left:auto">{% block nav %}<span class="muted">Terrahawk report store</span>{% endblock %}</span>
-</header>
-<main>
+<div class="container">
+<div class="header">
+  <div class="header-layout">
+    <img class="kettle-icon" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBzdGFuZGFsb25lPSJubyI/Pgo8IURPQ1RZUEUgc3ZnIFBVQkxJQyAiLS8vVzNDLy9EVEQgU1ZHIDIwMDEwOTA0Ly9FTiIKICJodHRwOi8vd3d3LnczLm9yZy9UUi8yMDAxL1JFQy1TVkctMjAwMTA5MDQvRFREL3N2ZzEwLmR0ZCI+CjxzdmcgdmVyc2lvbj0iMS4wIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciCiB3aWR0aD0iNTg3LjAwMDAwMHB0IiBoZWlnaHQ9IjU0OC4wMDAwMDBwdCIgdmlld0JveD0iMCAwIDU4Ny4wMDAwMDAgNTQ4LjAwMDAwMCIKIHByZXNlcnZlQXNwZWN0UmF0aW89InhNaWRZTWlkIG1lZXQiPgo8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwLjAwMDAwMCw1NDguMDAwMDAwKSBzY2FsZSgwLjEwMDAwMCwtMC4xMDAwMDApIgpmaWxsPSIjMDAwMDAwIiBzdHJva2U9Im5vbmUiPgo8cGF0aCBkPSJNMjQ4MCA1MTkwIGMtMjE3IC0zOCAtNTE2IC04OSAtNjY1IC0xMTQgLTE0OCAtMjYgLTMyMSAtNTYgLTM4NCAtNjgKbC0xMTMgLTIxIC00NSAtNzEgYy0yNSAtMzkgLTk5IC0xNTYgLTE2NCAtMjU5IC02NiAtMTAzIC0xMTkgLTE5MSAtMTE5IC0xOTUKMCAtNCA0NSAtMzAgMTAwIC01NyA1NSAtMjcgMTAwIC01NSAxMDAgLTYyIDAgLTYgLTQzIC0xMjQgLTk2IC0yNjAgLTUzIC0xMzYKLTExNCAtMjkzIC0xMzQgLTM0OCAtNTUgLTE0NCAtMTI1IC0zMjggLTIyMyAtNTgwIC00NDIgLTExNDMgLTQxMyAtMTA2NSAtNDAwCi0xMDY1IDQgMCAxMzYgNzEgMjkzIDE1OCAxNTcgODggMjg2IDE1OCAyODggMTU3IDEgLTEgLTM0IC0xNTAgLTc4IC0zMzEgLTQ1Ci0xODEgLTEwMSAtNDEyIC0xMjYgLTUxNCAtMjUgLTEwMiAtNDggLTE5NCAtNTEgLTIwNCAtNCAtMTUgLTIgLTE4IDEzIC0xMiAxOAo3IDMxNCAxOTEgNTc5IDM1OSBsMTQ5IDk1IDQxIC0zNiBjODEgLTcyIDcxMCAtNjc5IDEzMTAgLTEyNjUgNzIgLTcwIDEzNQotMTI3IDE0MCAtMTI3IDUgMCA4MSA3MSAxNzAgMTU4IDg4IDg2IDIzMCAyMjUgMzE1IDMwNyA4NiA4MyAzMDYgMjk2IDQ5MCA0NzUKNDcyIDQ1OCA1MDEgNDg1IDUxMCA0ODMgNCAtMSA3MCAtNDIgMTQ2IC05MCAyNTggLTE2NCA1ODIgLTM2MyA1OTIgLTM2MyA3IDAKLTE1NCA2NzEgLTIzOCA5ODkgLTExIDQxIC0xOCA3NiAtMTcgNzcgMiAyIDEwOCAtNTYgMjM3IC0xMjcgMTI5IC03MiAyNjEKLTE0NCAyOTMgLTE2MCA1OCAtMzAgNTkgLTMwIDUyIC03IC03IDIxIC0yMzAgNjA2IC0zMzAgODYzIC0yMyA2MSAtMTMzIDM0NAotMjQzIDYzMCAtMTEwIDI4NiAtMjE5IDU2NyAtMjQxIDYyNCAtMjMgNTggLTQxIDExMCAtNDEgMTE3IDAgNiA0MyAzMyA5NiA2MAo1MiAyNiA5NyA1MSA5OSA1NCA0IDYgLTI2MyA0NDIgLTMwOSA1MDYgLTE3IDI0IC0xMyAyMyAtNDU2IDk5IC0zMjUgNTUgLTEwODYKMTg0IC0xMTIwIDE4OSAtMTQgMiAtMjAzIC0yNyAtNDIwIC02NHogbS05MTAgLTEwMTIgYzM2IC0yMCAxMDYgLTU4IDE1NSAtODUKbDkwIC00OCAxIC03NSBjMCAtOTEgMjYgLTE0OCA4MiAtMTg0IDc2IC01MCAxNjcgLTQzIDI0MSAyMCBsMzkgMzQgNjYgLTM3CmMzNiAtMjAgNjYgLTQwIDY2IC00NCAwIC0xNCAtMTU4IC0xNDMgLTIwMCAtMTYzIC0zMyAtMTUgLTY1IC0yMSAtMTIwIC0yMQotNjUgMCAtODQgNCAtMTQxIDMyIC0xNDIgNzAgLTIxMSAxOTMgLTIzNCA0MTYgLTYgNTMgLTEyIDY0IC02OCAxMjkgLTM0IDM5Ci01NyA2OSAtNTIgNjcgNiAtMiAzOSAtMjEgNzUgLTQxeiBtMjY2MSAtMjkgYy00MSAtNDcgLTYxIC03OSAtNjIgLTk3IC01Ci0yMTggLTkyIC0zNzkgLTI0NCAtNDQ4IC0xNDEgLTY1IC0yNTAgLTM3IC00MDUgMTA0IC02MyA1NyAtNjQgNTMgMzUgMTA2IGw1NAozMCA0MCAtMzcgYzE0MSAtMTI3IDMzMyAtMjMgMzE5IDE3MyBsLTQgNjAgMTQ1IDgxIGM4MCA0NSAxNTAgODUgMTU2IDkwIDUgNQoxMyA5IDE4IDkgNSAwIC0xOSAtMzIgLTUyIC03MXogbS0xMTUxIC0zNDkgYzkxIC02NyAxNzAgLTEyNSAxNzYgLTEyOCA1IC00CjQ1IC0xMDggODcgLTIzMSA0MiAtMTI0IDgwIC0yMjggODQgLTIzMiA1IC0zIDk2IC0zMiAyMDMgLTY0IDEwNyAtMzEgMjQyIC03MQozMDAgLTg5IGwxMDUgLTMzIC03MCAtMjAgYy0zOCAtMTIgLTEzNyAtNDAgLTIxOSAtNjIgbC0xNDkgLTQyIC05NiAtODMgYy0xMjUKLTExMCAtMjAwIC0xODkgLTI0NyAtMjYyIC0yMSAtMzIgLTk0IC0xNzEgLTE2MiAtMzA5IC02OCAtMTM3IC0xMjEgLTI0MyAtMTE5Ci0yMzUgMiA4IDQwIDEyMSA4NSAyNTAgbDgwIDIzNSAxMDkgMTcwIGM2MCA5NCAxMTUgMTgwIDEyMSAxOTEgMTAgMTkgMCAzOQotNzMgMTU5IC00NyA3NSAtODUgMTQxIC04NSAxNDUgMCA1IDIwIDM5IDQ0IDc2IGw0NSA2OCAtNjEgNjggYy0zMyAzNyAtNjQgNzAKLTY4IDczIC01IDMgLTEyIC0zNiAtMTYgLTg2IGwtNyAtOTEgLTQyIDY5IGMtMjQgMzcgLTgwIDEyNiAtMTI1IDE5NiAtNzkgMTIzCi04NCAxMjggLTEwMCAxMTAgLTE1IC0xNSAtMTM3IC0yMDMgLTIxNyAtMzMzIC0yMSAtMzQgLTIyIC0zNCAtMjcgLTEwIC0zIDE0Ci03IDQ5IC05IDc4IC0yIDI5IC02IDU1IC05IDU4IC02IDUgLTEyMCAtMTEwIC0xMjYgLTEyNiAtMiAtNCAxOCAtNDAgNDMgLTc5Cmw0NiAtNzIgLTg2IC0xMzUgYy03NyAtMTIxIC04NiAtMTM5IC03NiAtMTYwIDYgLTEzIDYxIC0xMDEgMTIyIC0xOTYgbDExMgotMTczIDc4IC0yMzkgYzQ0IC0xMzIgNzkgLTI0MiA3OSAtMjQ1IDAgLTMgLTU0IDEwMiAtMTE4IDIzNCAtNjUgMTMyIC0xMzUKMjY3IC0xNTYgMzAwIC00NSA3MSAtMTI0IDE1NCAtMjU3IDI3MSAtMTA2IDkyIC05OCA4OCAtMzU5IDE1OSAtMTkzIDUyIC0xODEKNDcgLTEzNSA2MSAxMzcgNDMgNTUyIDE2NCA1NjEgMTY0IDEwIDAgMzcgNzQgMTQ0IDM5MyAxNiA0NiAzMiA3NSA0OSA4NyAxNAoxMCAxMDAgNzMgMTkwIDEzOSAxMDAgNzMgMTY5IDExNyAxNzUgMTEyIDYgLTUgODUgLTYzIDE3NiAtMTMxeiIvPgo8L2c+Cjwvc3ZnPgo=" alt="Terrakettle">
+    <div class="header-text">
+      <h1><a href="/">Terrakettle</a></h1>
+      <div class="tagline">{% block tagline %}Where Terrahawk reports come to rest{% endblock %}</div>
+    </div>
+  </div>
+  <button class="info-btn" style="right:60px" title="Toggle theme" onclick="toggleTheme()" id="theme-btn">&#x263E;</button>
+  <button class="info-btn" style="right:16px" title="About Terrakettle" onclick="document.getElementById('about-modal').classList.add('open')">&#x2139;</button>
+  {% block nav %}{% endblock %}
+</div>
 {% block content %}{% endblock %}
-</main>
+</div>
+
+<div class="modal-overlay" id="about-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box" style="max-width:680px">
+    <div class="modal-header">
+      <h3><img class="modal-eagle" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBzdGFuZGFsb25lPSJubyI/Pgo8IURPQ1RZUEUgc3ZnIFBVQkxJQyAiLS8vVzNDLy9EVEQgU1ZHIDIwMDEwOTA0Ly9FTiIKICJodHRwOi8vd3d3LnczLm9yZy9UUi8yMDAxL1JFQy1TVkctMjAwMTA5MDQvRFREL3N2ZzEwLmR0ZCI+CjxzdmcgdmVyc2lvbj0iMS4wIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciCiB3aWR0aD0iNTg3LjAwMDAwMHB0IiBoZWlnaHQ9IjU0OC4wMDAwMDBwdCIgdmlld0JveD0iMCAwIDU4Ny4wMDAwMDAgNTQ4LjAwMDAwMCIKIHByZXNlcnZlQXNwZWN0UmF0aW89InhNaWRZTWlkIG1lZXQiPgo8ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwLjAwMDAwMCw1NDguMDAwMDAwKSBzY2FsZSgwLjEwMDAwMCwtMC4xMDAwMDApIgpmaWxsPSIjMDAwMDAwIiBzdHJva2U9Im5vbmUiPgo8cGF0aCBkPSJNMjQ4MCA1MTkwIGMtMjE3IC0zOCAtNTE2IC04OSAtNjY1IC0xMTQgLTE0OCAtMjYgLTMyMSAtNTYgLTM4NCAtNjgKbC0xMTMgLTIxIC00NSAtNzEgYy0yNSAtMzkgLTk5IC0xNTYgLTE2NCAtMjU5IC02NiAtMTAzIC0xMTkgLTE5MSAtMTE5IC0xOTUKMCAtNCA0NSAtMzAgMTAwIC01NyA1NSAtMjcgMTAwIC01NSAxMDAgLTYyIDAgLTYgLTQzIC0xMjQgLTk2IC0yNjAgLTUzIC0xMzYKLTExNCAtMjkzIC0xMzQgLTM0OCAtNTUgLTE0NCAtMTI1IC0zMjggLTIyMyAtNTgwIC00NDIgLTExNDMgLTQxMyAtMTA2NSAtNDAwCi0xMDY1IDQgMCAxMzYgNzEgMjkzIDE1OCAxNTcgODggMjg2IDE1OCAyODggMTU3IDEgLTEgLTM0IC0xNTAgLTc4IC0zMzEgLTQ1Ci0xODEgLTEwMSAtNDEyIC0xMjYgLTUxNCAtMjUgLTEwMiAtNDggLTE5NCAtNTEgLTIwNCAtNCAtMTUgLTIgLTE4IDEzIC0xMiAxOAo3IDMxNCAxOTEgNTc5IDM1OSBsMTQ5IDk1IDQxIC0zNiBjODEgLTcyIDcxMCAtNjc5IDEzMTAgLTEyNjUgNzIgLTcwIDEzNQotMTI3IDE0MCAtMTI3IDUgMCA4MSA3MSAxNzAgMTU4IDg4IDg2IDIzMCAyMjUgMzE1IDMwNyA4NiA4MyAzMDYgMjk2IDQ5MCA0NzUKNDcyIDQ1OCA1MDEgNDg1IDUxMCA0ODMgNCAtMSA3MCAtNDIgMTQ2IC05MCAyNTggLTE2NCA1ODIgLTM2MyA1OTIgLTM2MyA3IDAKLTE1NCA2NzEgLTIzOCA5ODkgLTExIDQxIC0xOCA3NiAtMTcgNzcgMiAyIDEwOCAtNTYgMjM3IC0xMjcgMTI5IC03MiAyNjEKLTE0NCAyOTMgLTE2MCA1OCAtMzAgNTkgLTMwIDUyIC03IC03IDIxIC0yMzAgNjA2IC0zMzAgODYzIC0yMyA2MSAtMTMzIDM0NAotMjQzIDYzMCAtMTEwIDI4NiAtMjE5IDU2NyAtMjQxIDYyNCAtMjMgNTggLTQxIDExMCAtNDEgMTE3IDAgNiA0MyAzMyA5NiA2MAo1MiAyNiA5NyA1MSA5OSA1NCA0IDYgLTI2MyA0NDIgLTMwOSA1MDYgLTE3IDI0IC0xMyAyMyAtNDU2IDk5IC0zMjUgNTUgLTEwODYKMTg0IC0xMTIwIDE4OSAtMTQgMiAtMjAzIC0yNyAtNDIwIC02NHogbS05MTAgLTEwMTIgYzM2IC0yMCAxMDYgLTU4IDE1NSAtODUKbDkwIC00OCAxIC03NSBjMCAtOTEgMjYgLTE0OCA4MiAtMTg0IDc2IC01MCAxNjcgLTQzIDI0MSAyMCBsMzkgMzQgNjYgLTM3CmMzNiAtMjAgNjYgLTQwIDY2IC00NCAwIC0xNCAtMTU4IC0xNDMgLTIwMCAtMTYzIC0zMyAtMTUgLTY1IC0yMSAtMTIwIC0yMQotNjUgMCAtODQgNCAtMTQxIDMyIC0xNDIgNzAgLTIxMSAxOTMgLTIzNCA0MTYgLTYgNTMgLTEyIDY0IC02OCAxMjkgLTM0IDM5Ci01NyA2OSAtNTIgNjcgNiAtMiAzOSAtMjEgNzUgLTQxeiBtMjY2MSAtMjkgYy00MSAtNDcgLTYxIC03OSAtNjIgLTk3IC01Ci0yMTggLTkyIC0zNzkgLTI0NCAtNDQ4IC0xNDEgLTY1IC0yNTAgLTM3IC00MDUgMTA0IC02MyA1NyAtNjQgNTMgMzUgMTA2IGw1NAozMCA0MCAtMzcgYzE0MSAtMTI3IDMzMyAtMjMgMzE5IDE3MyBsLTQgNjAgMTQ1IDgxIGM4MCA0NSAxNTAgODUgMTU2IDkwIDUgNQoxMyA5IDE4IDkgNSAwIC0xOSAtMzIgLTUyIC03MXogbS0xMTUxIC0zNDkgYzkxIC02NyAxNzAgLTEyNSAxNzYgLTEyOCA1IC00CjQ1IC0xMDggODcgLTIzMSA0MiAtMTI0IDgwIC0yMjggODQgLTIzMiA1IC0zIDk2IC0zMiAyMDMgLTY0IDEwNyAtMzEgMjQyIC03MQozMDAgLTg5IGwxMDUgLTMzIC03MCAtMjAgYy0zOCAtMTIgLTEzNyAtNDAgLTIxOSAtNjIgbC0xNDkgLTQyIC05NiAtODMgYy0xMjUKLTExMCAtMjAwIC0xODkgLTI0NyAtMjYyIC0yMSAtMzIgLTk0IC0xNzEgLTE2MiAtMzA5IC02OCAtMTM3IC0xMjEgLTI0MyAtMTE5Ci0yMzUgMiA4IDQwIDEyMSA4NSAyNTAgbDgwIDIzNSAxMDkgMTcwIGM2MCA5NCAxMTUgMTgwIDEyMSAxOTEgMTAgMTkgMCAzOQotNzMgMTU5IC00NyA3NSAtODUgMTQxIC04NSAxNDUgMCA1IDIwIDM5IDQ0IDc2IGw0NSA2OCAtNjEgNjggYy0zMyAzNyAtNjQgNzAKLTY4IDczIC01IDMgLTEyIC0zNiAtMTYgLTg2IGwtNyAtOTEgLTQyIDY5IGMtMjQgMzcgLTgwIDEyNiAtMTI1IDE5NiAtNzkgMTIzCi04NCAxMjggLTEwMCAxMTAgLTE1IC0xNSAtMTM3IC0yMDMgLTIxNyAtMzMzIC0yMSAtMzQgLTIyIC0zNCAtMjcgLTEwIC0zIDE0Ci03IDQ5IC05IDc4IC0yIDI5IC02IDU1IC05IDU4IC02IDUgLTEyMCAtMTEwIC0xMjYgLTEyNiAtMiAtNCAxOCAtNDAgNDMgLTc5Cmw0NiAtNzIgLTg2IC0xMzUgYy03NyAtMTIxIC04NiAtMTM5IC03NiAtMTYwIDYgLTEzIDYxIC0xMDEgMTIyIC0xOTYgbDExMgotMTczIDc4IC0yMzkgYzQ0IC0xMzIgNzkgLTI0MiA3OSAtMjQ1IDAgLTMgLTU0IDEwMiAtMTE4IDIzNCAtNjUgMTMyIC0xMzUKMjY3IC0xNTYgMzAwIC00NSA3MSAtMTI0IDE1NCAtMjU3IDI3MSAtMTA2IDkyIC05OCA4OCAtMzU5IDE1OSAtMTkzIDUyIC0xODEKNDcgLTEzNSA2MSAxMzcgNDMgNTUyIDE2NCA1NjEgMTY0IDEwIDAgMzcgNzQgMTQ0IDM5MyAxNiA0NiAzMiA3NSA0OSA4NyAxNAoxMCAxMDAgNzMgMTkwIDEzOSAxMDAgNzMgMTY5IDExNyAxNzUgMTEyIDYgLTUgODUgLTYzIDE3NiAtMTMxeiIvPgo8L2c+Cjwvc3ZnPgo=" alt="">Terrakettle</h3>
+      <button class="modal-close" onclick="document.getElementById('about-modal').classList.remove('open')">&times;</button>
+    </div>
+    <div class="modal-body about-content">
+      <p>Terrakettle is the companion web service to <a href="https://github.com/wecloudes/terrahawk" target="_blank" rel="noopener" style="color:var(--cyan)">Terrahawk</a> — where Terrahawk reports come to rest. Terrahawk runs <strong>terragrunt plan</strong> across your infrastructure and emits a static HTML report per run; Terrakettle <strong>stores those reports per project</strong>, keeps the full history, and serves the original interactive report from a browser — adding status badges, run-to-run comparison, feeds, metrics, and drift notifications on top.</p>
+
+      <h4>How it works</h4>
+      <p>Terrahawk pushes each scan to Terrakettle's authenticated endpoint (<code>--push-url</code> / <code>--push-token</code>). Report payloads (HTML, <code>_data.js</code>, JSON) are written to <strong>object storage</strong> (local disk, S3, Azure Blob, or GCS); a small <strong>SQLite</strong> index holds the per-run metadata. The web UI never alters the stored report — it streams Terrahawk's HTML verbatim and wraps it in history, search, and access control.</p>
+
+      <h4>This server</h4>
+      <table class="ver-table">
+        <tr><td class="k">Version</td><td class="v">{{ about.version or '—' }}</td></tr>
+        <tr><td class="k">Storage backend</td><td class="v">{{ about.storage_backend }}</td></tr>
+        <tr><td class="k">Presigned sidecar URLs</td><td class="v">{{ 'on' if about.signed_urls else 'off' }}</td></tr>
+        <tr><td class="k">View authentication</td><td class="v">{{ 'on' if about.view_auth else 'open' }}</td></tr>
+        <tr><td class="k">Drift notifications</td><td class="v">{{ 'on' if about.notify else 'off' }}</td></tr>
+        <tr><td class="k">Retention (max runs/project)</td><td class="v">{{ about.max_runs if about.max_runs else 'unlimited' }}</td></tr>
+      </table>
+
+      <h4>Features</h4>
+      <p>
+      🗂️ <strong>Per-project history</strong> — every run filed under a project, newest-first, with clean/drift/error/timeout counts, a drift trend sparkline, status filtering, and pagination.<br><br>
+      📤 <strong>Push API</strong> — a single token-authenticated endpoint Terrahawk uploads to after each scan. Per-project bearer tokens (optional expiry + rate limit), guarded by an admin key.<br><br>
+      🗄️ <strong>Object storage</strong> — report files live in S3 / Azure Blob / GCS (or local disk); large sidecars redirect to short-lived presigned URLs so the object store serves the bytes directly.<br><br>
+      🦅 <strong>Original report, untouched</strong> — the interactive Terrahawk HTML (diagrams, diffs, CSV export) is served exactly as generated; its <code>_data.js</code> loads as a sibling.<br><br>
+      ↔️ <strong>Run compare</strong> — diff any two runs to see which units flipped clean → drift / error over time.<br><br>
+      🛡️ <strong>Status badge</strong> — an embeddable SVG shield per project (<code>/p/&lt;slug&gt;/badge.svg</code>), public even when viewing is gated.<br><br>
+      📡 <strong>Feeds &amp; metrics</strong> — JSON + RSS run feeds, Prometheus <code>/metrics</code>, and a deep <code>/healthz</code> that probes the DB and storage.<br><br>
+      🔔 <strong>Notifications</strong> — fire a Slack / Teams / generic webhook when a pushed run has drift or errors.<br><br>
+      🔒 <strong>Access control</strong> — optional password-gated viewing (signed session cookie); reports served with a strict CSP. Refuses to start on the default admin key.<br><br>
+      🎨 <strong>Dark / Light theme</strong> — toggle with the moon button in the header; the preference is saved in localStorage and persists across sessions.
+      </p>
+
+      <div class="about-footer">
+        <strong>Terrakettle</strong> · MIT · <a href="https://github.com/wecloudes/terrakettle" target="_blank" rel="noopener" style="color:var(--cyan)">github.com/wecloudes/terrakettle</a><br>
+        Made with &lt;3 by <a href="https://www.wecloud.es/" target="_blank" rel="noopener" style="color:var(--cyan)">WeCloud</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleTheme(){
+  var cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  var next = cur === 'light' ? 'dark' : 'light';
+  if (next === 'light') document.documentElement.setAttribute('data-theme','light');
+  else document.documentElement.removeAttribute('data-theme');
+  try { localStorage.setItem('tk-theme', next); } catch(e){}
+}
+</script>
 </body>
 </html>

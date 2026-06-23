@@ -1,0 +1,49 @@
+# Terrakettle + versitygw (Apache-2.0 S3 gateway) — the credential-free
+# default stack. versitygw gives Terrakettle a real S3 endpoint so report
+# sidecars are served via presigned URLs (no cloud account needed).
+#
+#   docker compose up --build
+#   open http://localhost:8000   (set TERRAKETTLE_ADMIN_KEY first)
+#
+# Presigned-URL note: Terrakettle signs sidecar URLs against TERRAKETTLE_VERSITYGW_URL,
+# and the BROWSER must be able to reach that same URL. This file uses host
+# networking so `http://localhost:7070` is consistent for both the terrakettle
+# container and your browser (works on Linux). On Docker Desktop (macOS/Windows)
+# host networking is limited — instead run versitygw from this file and start
+# Terrakettle on the host: `terrakettle serve` (it defaults to localhost:7070).
+
+services:
+  versitygw:
+    image: ghcr.io/versity/versitygw:latest
+    container_name: terrakettle-versitygw
+    network_mode: host                    # publishes :7070 on the host
+    environment:
+      ROOT_ACCESS_KEY: terrakettle
+      ROOT_SECRET_KEY: terrakettle-secret
+    command: ["--region", "us-east-1", "posix", "/data"]
+    volumes:
+      - versity-data:/data
+    restart: unless-stopped
+
+  terrakettle:
+    build: .
+    container_name: terrakettle
+    network_mode: host                    # so localhost:7070 == versitygw
+    depends_on: [versitygw]
+    environment:
+      TERRAKETTLE_ADMIN_KEY: ${TERRAKETTLE_ADMIN_KEY:?set a real admin key}
+      TERRAKETTLE_STORAGE_BACKEND: auto    # no cloud creds -> versitygw
+      TERRAKETTLE_STORAGE_BUCKET: terrakettle
+      TERRAKETTLE_VERSITYGW_URL: http://localhost:7070
+      TERRAKETTLE_VERSITYGW_ACCESS_KEY: terrakettle
+      TERRAKETTLE_VERSITYGW_SECRET_KEY: terrakettle-secret
+      TERRAKETTLE_DB_PATH: /data/terrakettle.db
+      TERRAKETTLE_PUBLIC_URL: http://localhost:8000
+    command: ["serve", "--host", "0.0.0.0", "--port", "8000"]
+    volumes:
+      - terrakettle-data:/data
+    restart: unless-stopped
+
+volumes:
+  versity-data:
+  terrakettle-data:

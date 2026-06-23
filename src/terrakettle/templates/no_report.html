@@ -2,7 +2,11 @@
 {% block title %}{{ run['run_id'] }} · Terrakettle{% endblock %}
 {% block content %}
 <p class="muted"><a href="/p/{{ project['slug'] }}">← {{ project['name'] }}</a></p>
-<h2>{{ run['run_id'] }}</h2>
-<p class="empty">No HTML report was pushed for this run.
-  <a href="/p/{{ project['slug'] }}/runs/{{ run['run_id'] }}/{{ run['run_id'] }}.json">View raw JSON</a>.</p>
+<h2 class="mono">{{ run['run_id'] }}</h2>
+<div class="empty">
+  <p>No HTML report was pushed for this run.</p>
+  <p style="margin-top:1rem">
+    <a class="btn" href="/p/{{ project['slug'] }}/runs/{{ run['run_id'] }}/{{ run['run_id'] }}.json">View raw JSON</a>
+  </p>
+</div>
 {% endblock %}

@@ -1,17 +1,15 @@
 """HTML view: compare the unit results of two runs of a project."""
 
 import json
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
 
 from . import db
 from .storage import get_storage
+from .templating import templates as _templates
 
 router = APIRouter()
-_templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 # Severity ranking: higher == worse. Used to sort changes (regressions first)
 # and to decide whether a status change is a regression or an improvement.
